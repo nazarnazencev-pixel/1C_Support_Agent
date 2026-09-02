@@ -12,6 +12,8 @@ from app.config.settings import (
     GIGACHAT_MODEL,
 )
 
+from app.knowledge.base import LocalKnowledgeBase
+from app.files.processor import FileProcessor
 
 SYSTEM_PROMPT = """
 Ты — специалист технической поддержки пользователей 1С.
@@ -56,8 +58,27 @@ class SupportAgent:
 
         self.history = []
 
+        self.knowledge_base = LocalKnowledgeBase()
+
+        self.file_processor = FileProcessor(self.client)
+
     def ask(self, user_message: str) -> str:
 
+        # Ищем информацию в базе знаний
+        knowledge_results = self.knowledge_base.search(
+            user_message,
+            limit=3,
+        )
+
+        knowledge_context = ""
+
+        if knowledge_results:
+            knowledge_context = "\n\n".join(
+                result["content"]
+                for result in knowledge_results
+            )
+
+        # Добавляем сообщение пользователя в историю
         self.history.append(
             Messages(
                 role=MessagesRole.USER,
@@ -65,24 +86,47 @@ class SupportAgent:
             )
         )
 
+        # Формируем системный промпт
+        system_prompt = SYSTEM_PROMPT
+
+        if knowledge_context:
+            system_prompt += f"""
+
+Информация из внутренней базы знаний:
+
+---
+{knowledge_context}
+---
+
+Используй эту информацию при подготовке ответа.
+
+Если информации из базы знаний недостаточно,
+не выдумывай недостающие сведения.
+Задай пользователю уточняющие вопросы.
+"""
+
+        # Формируем сообщения для GigaChat
         messages = [
             Messages(
                 role=MessagesRole.SYSTEM,
-                content=SYSTEM_PROMPT,
+                content=system_prompt,
             )
         ]
 
         messages.extend(self.history)
 
+        # Создаём запрос
         chat = Chat(
             model=GIGACHAT_MODEL,
             messages=messages,
         )
 
+        # Отправляем запрос в GigaChat
         response = self.client.chat(chat)
 
         assistant_message = response.choices[0].message.content
 
+        # Сохраняем ответ в историю
         self.history.append(
             Messages(
                 role=MessagesRole.ASSISTANT,
@@ -91,3 +135,28 @@ class SupportAgent:
         )
 
         return assistant_message
+
+    def analyze_file(
+        self,
+        file_path: str,
+        user_message: str,
+    ) -> str:
+
+        uploaded = self.file_processor.upload(file_path)
+
+        file_id = uploaded.id_
+
+        extension = file_path.lower().split(".")[-1]
+
+        if extension in {"png", "jpg", "jpeg"}:
+            return self.file_processor.analyze_image(
+                file_id=file_id,
+                user_message=user_message,
+                model=GIGACHAT_MODEL,
+            )
+
+        return self.file_processor.analyze_document(
+            file_id=file_id,
+            user_message=user_message,
+            model=GIGACHAT_MODEL,
+        )

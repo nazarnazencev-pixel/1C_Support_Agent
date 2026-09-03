@@ -1,14 +1,59 @@
 from dataclasses import dataclass, field
-from typing import List
+from enum import Enum
+from typing import Any
+
+
+class ConversationStatus(str, Enum):
+    """
+    Состояние текущего обращения.
+    """
+
+    NEW = "new"
+
+    DIAGNOSING = "diagnosing"
+
+    WAITING_USER = "waiting_user"
+
+    SOLVING = "solving"
+
+    SOLVED = "solved"
+
+    ESCALATED = "escalated"
+
+    CLOSED = "closed"
 
 
 @dataclass
 class ConversationContext:
     """
-    Структурированное состояние текущего обращения пользователя.
+    Структурированное состояние одного обращения.
+
+    ВАЖНО:
+
+    ConversationContext НЕ хранит историю сообщений.
+
+    История находится в:
+        SupportAgent.history
+
+    ConversationContext хранит только текущее понимание
+    проблемы агентом.
     """
 
+    # =========================================================
+    # Состояние
+    # =========================================================
+
+    status: ConversationStatus = ConversationStatus.NEW
+
+    # =========================================================
+    # Проблема
+    # =========================================================
+
     problem: str = ""
+
+    # =========================================================
+    # Информация о 1С
+    # =========================================================
 
     configuration: str = ""
 
@@ -20,34 +65,497 @@ class ConversationContext:
 
     database_type: str = ""
 
+    # =========================================================
+    # Документ / операция
+    # =========================================================
+
     document_type: str = ""
 
     document_period: str = ""
 
+    # =========================================================
+    # Ошибка
+    # =========================================================
+
     error_text: str = ""
 
-    user_actions: List[str] = field(default_factory=list)
+    error_code: str = ""
 
-    completed_checks: List[str] = field(default_factory=list)
+    # =========================================================
+    # Диагностика
+    # =========================================================
 
-    important_facts: List[str] = field(default_factory=list)
+    user_actions: list[str] = field(
+        default_factory=list
+    )
 
-    unresolved_questions: List[str] = field(default_factory=list)
+    completed_checks: list[str] = field(
+        default_factory=list
+    )
 
-    knowledge_used: List[str] = field(default_factory=list)
+    important_facts: list[str] = field(
+        default_factory=list
+    )
+
+    unresolved_questions: list[str] = field(
+        default_factory=list
+    )
+
+    excluded_hypotheses: list[str] = field(
+        default_factory=list
+    )
+
+    # =========================================================
+    # Гипотеза
+    # =========================================================
+
+    current_hypothesis: str = ""
+
+    hypothesis_confidence: float = 0.0
+
+    diagnostic_cycle: int = 0
+
+    # =========================================================
+    # Следующее действие
+    # =========================================================
+
+    next_action: str = ""
+
+    # =========================================================
+    # База знаний
+    # =========================================================
+
+    knowledge_used: list[str] = field(
+        default_factory=list
+    )
+
+    # =========================================================
+    # Вложения
+    # =========================================================
+
+    attachments: list[dict[str, Any]] = field(
+        default_factory=list
+    )
+
+    # =========================================================
+    # Эскалация
+    # =========================================================
+
+    escalation_reason: str = ""
+
+    # =========================================================
+    # Результат
+    # =========================================================
+
+    resolution: str = ""
+
+    resolution_confirmed: bool = False
+
+    # =========================================================
+    # Проблема
+    # =========================================================
+
+    def update_problem(
+        self,
+        problem: str,
+    ) -> None:
+
+        if problem:
+            self.problem = problem
+
+    # =========================================================
+    # 1С
+    # =========================================================
+
+    def update_configuration(
+        self,
+        configuration: str,
+    ) -> None:
+
+        if configuration:
+            self.configuration = configuration
+
+    def update_configuration_version(
+        self,
+        version: str,
+    ) -> None:
+
+        if version:
+            self.configuration_version = version
+
+    def update_platform_version(
+        self,
+        version: str,
+    ) -> None:
+
+        if version:
+            self.platform_version = version
+
+    def update_work_mode(
+        self,
+        work_mode: str,
+    ) -> None:
+
+        if work_mode:
+            self.work_mode = work_mode
+
+    def update_database_type(
+        self,
+        database_type: str,
+    ) -> None:
+
+        if database_type:
+            self.database_type = database_type
+
+    # =========================================================
+    # Документ
+    # =========================================================
+
+    def update_document_type(
+        self,
+        document_type: str,
+    ) -> None:
+
+        if document_type:
+            self.document_type = document_type
+
+    def update_document_period(
+        self,
+        period: str,
+    ) -> None:
+
+        if period:
+            self.document_period = period
+
+    # =========================================================
+    # Ошибка
+    # =========================================================
+
+    def update_error(
+        self,
+        error_text: str,
+        error_code: str = "",
+    ) -> None:
+
+        if error_text:
+            self.error_text = error_text
+
+        if error_code:
+            self.error_code = error_code
+
+    # =========================================================
+    # Действия
+    # =========================================================
+
+    def add_user_action(
+        self,
+        action: str,
+    ) -> None:
+
+        if (
+            action
+            and action not in self.user_actions
+        ):
+            self.user_actions.append(action)
+
+    # =========================================================
+    # Проверки
+    # =========================================================
+
+    def add_completed_check(
+        self,
+        check: str,
+    ) -> None:
+
+        if (
+            check
+            and check not in self.completed_checks
+        ):
+            self.completed_checks.append(check)
+
+    # =========================================================
+    # Факты
+    # =========================================================
+
+    def add_fact(
+        self,
+        fact: str,
+    ) -> None:
+
+        if (
+            fact
+            and fact not in self.important_facts
+        ):
+            self.important_facts.append(fact)
+
+    # =========================================================
+    # Незакрытые вопросы
+    # =========================================================
+
+    def add_unresolved_question(
+        self,
+        question: str,
+    ) -> None:
+
+        if (
+            question
+            and question not in self.unresolved_questions
+        ):
+            self.unresolved_questions.append(question)
+
+    def remove_unresolved_question(
+        self,
+        question: str,
+    ) -> None:
+
+        if question in self.unresolved_questions:
+            self.unresolved_questions.remove(
+                question
+            )
+
+    # =========================================================
+    # Исключённые гипотезы
+    # =========================================================
+
+    def add_excluded_hypothesis(
+        self,
+        hypothesis: str,
+    ) -> None:
+
+        if (
+            hypothesis
+            and hypothesis not in self.excluded_hypotheses
+        ):
+            self.excluded_hypotheses.append(
+                hypothesis
+            )
+
+    # =========================================================
+    # Гипотеза
+    # =========================================================
+
+    def set_hypothesis(
+        self,
+        hypothesis: str,
+        confidence: float | None = None,
+    ) -> None:
+
+        if hypothesis:
+            self.current_hypothesis = hypothesis
+
+        if confidence is not None:
+
+            self.hypothesis_confidence = max(
+                0.0,
+                min(1.0, confidence),
+            )
+
+    def clear_hypothesis(self) -> None:
+
+        self.current_hypothesis = ""
+
+        self.hypothesis_confidence = 0.0
+
+    # =========================================================
+    # Диагностический цикл
+    # =========================================================
+
+    def start_diagnostic_cycle(self) -> None:
+
+        self.diagnostic_cycle += 1
+
+    # =========================================================
+    # Следующее действие
+    # =========================================================
+
+    def set_next_action(
+        self,
+        action: str,
+    ) -> None:
+
+        self.next_action = action
+
+    # =========================================================
+    # База знаний
+    # =========================================================
+
+    def add_knowledge(
+        self,
+        knowledge: str,
+    ) -> None:
+
+        if (
+            knowledge
+            and knowledge not in self.knowledge_used
+        ):
+            self.knowledge_used.append(
+                knowledge
+            )
+
+    # =========================================================
+    # Вложения
+    # =========================================================
+
+    def add_attachment(
+        self,
+        file_name: str,
+        file_id: str = "",
+        file_type: str = "",
+        analysis: str = "",
+    ) -> None:
+
+        if not file_name:
+            return
+
+        for attachment in self.attachments:
+
+            if (
+                attachment.get("file_name")
+                == file_name
+            ):
+
+                if file_id:
+                    attachment["file_id"] = file_id
+
+                if file_type:
+                    attachment["file_type"] = file_type
+
+                if analysis:
+                    attachment["analysis"] = analysis
+
+                return
+
+        self.attachments.append(
+            {
+                "file_name": file_name,
+                "file_id": file_id,
+                "file_type": file_type,
+                "analysis": analysis,
+            }
+        )
+
+    # =========================================================
+    # Эскалация
+    # =========================================================
+
+    def escalate(
+        self,
+        reason: str,
+    ) -> None:
+
+        self.status = (
+            ConversationStatus.ESCALATED
+        )
+
+        self.escalation_reason = reason
+
+    # =========================================================
+    # Решение
+    # =========================================================
+
+    def mark_solved(
+        self,
+        resolution: str,
+    ) -> None:
+
+        self.status = (
+            ConversationStatus.SOLVED
+        )
+
+        self.resolution = resolution
+
+        self.resolution_confirmed = True
+
+    # =========================================================
+    # Статус
+    # =========================================================
+
+    def set_status(
+        self,
+        status: ConversationStatus,
+    ) -> None:
+
+        self.status = status
+
+    # =========================================================
+    # Форматирование
+    # =========================================================
+
+    @staticmethod
+    def _format_list(
+        items: list[str],
+    ) -> str:
+
+        if not items:
+            return "нет данных"
+
+        return "\n".join(
+            f"- {item}"
+            for item in items
+        )
+
+    def _format_attachments(self) -> str:
+
+        if not self.attachments:
+            return "нет вложений"
+
+        result = []
+
+        for attachment in self.attachments:
+
+            file_name = attachment.get(
+                "file_name",
+                "неизвестный файл",
+            )
+
+            file_type = attachment.get(
+                "file_type",
+                "",
+            )
+
+            analysis = attachment.get(
+                "analysis",
+                "",
+            )
+
+            line = f"- {file_name}"
+
+            if file_type:
+                line += f" ({file_type})"
+
+            if analysis:
+                line += (
+                    f"\n  Анализ: {analysis}"
+                )
+
+            result.append(line)
+
+        return "\n".join(result)
+
+    # =========================================================
+    # Prompt
+    # =========================================================
 
     def to_prompt(self) -> str:
-        """
-        Преобразует состояние обращения в понятный для LLM текст.
-        """
+
+        confidence = (
+            f"{self.hypothesis_confidence * 100:.0f}%"
+            if self.current_hypothesis
+            else "не определена"
+        )
 
         return f"""
 ТЕКУЩЕЕ СОСТОЯНИЕ ОБРАЩЕНИЯ
 
+Статус:
+{self.status.value}
+
 Проблема:
 {self.problem or "не определена"}
 
-Конфигурация 1С:
+ИНФОРМАЦИЯ О 1С
+
+Конфигурация:
 {self.configuration or "не указана"}
 
 Версия конфигурации:
@@ -59,8 +567,10 @@ class ConversationContext:
 Режим работы:
 {self.work_mode or "не указан"}
 
-Тип базы:
+Тип информационной базы:
 {self.database_type or "не указан"}
+
+ДАННЫЕ ДОКУМЕНТА
 
 Вид документа:
 {self.document_type or "не указан"}
@@ -68,8 +578,15 @@ class ConversationContext:
 Период документа:
 {self.document_period or "не указан"}
 
+ОШИБКА
+
 Текст ошибки:
 {self.error_text or "не указан"}
+
+Код ошибки:
+{self.error_code or "не указан"}
+
+ДИАГНОСТИКА
 
 Что пользователь уже делал:
 {self._format_list(self.user_actions)}
@@ -83,65 +600,147 @@ class ConversationContext:
 Незакрытые вопросы:
 {self._format_list(self.unresolved_questions)}
 
-Использованная информация из базы знаний:
+Исключённые гипотезы:
+{self._format_list(self.excluded_hypotheses)}
+
+Текущая гипотеза:
+{self.current_hypothesis or "не сформирована"}
+
+Уверенность в гипотезе:
+{confidence}
+
+Количество диагностических циклов:
+{self.diagnostic_cycle}
+
+Следующее действие:
+{self.next_action or "не определено"}
+
+ВЛОЖЕНИЯ
+
+{self._format_attachments()}
+
+БАЗА ЗНАНИЙ
+
+Использованная информация:
 {self._format_list(self.knowledge_used)}
+
+ЭСКАЛАЦИЯ
+
+Причина передачи оператору:
+{self.escalation_reason or "не требуется"}
+
+РЕЗУЛЬТАТ
+
+Решение:
+{self.resolution or "не определено"}
+
+Проблема подтверждённо решена:
+{"да" if self.resolution_confirmed else "нет"}
 """.strip()
 
-    @staticmethod
-    def _format_list(items: List[str]) -> str:
-        if not items:
-            return "нет данных"
+    # =========================================================
+    # Сериализация
+    # =========================================================
 
-        return "\n".join(
-            f"- {item}"
-            for item in items
-        )
+    def to_dict(self) -> dict[str, Any]:
 
-    def update_problem(self, problem: str):
-        if problem:
-            self.problem = problem
+        return {
+            "status": self.status.value,
+            "problem": self.problem,
+            "configuration": self.configuration,
+            "configuration_version":
+                self.configuration_version,
+            "platform_version":
+                self.platform_version,
+            "work_mode": self.work_mode,
+            "database_type": self.database_type,
+            "document_type": self.document_type,
+            "document_period": self.document_period,
+            "error_text": self.error_text,
+            "error_code": self.error_code,
+            "user_actions": list(self.user_actions),
+            "completed_checks":
+                list(self.completed_checks),
+            "important_facts":
+                list(self.important_facts),
+            "unresolved_questions":
+                list(self.unresolved_questions),
+            "excluded_hypotheses":
+                list(self.excluded_hypotheses),
+            "current_hypothesis":
+                self.current_hypothesis,
+            "hypothesis_confidence":
+                self.hypothesis_confidence,
+            "diagnostic_cycle":
+                self.diagnostic_cycle,
+            "next_action":
+                self.next_action,
+            "knowledge_used":
+                list(self.knowledge_used),
+            "attachments": [
+                dict(attachment)
+                for attachment in self.attachments
+            ],
+            "escalation_reason":
+                self.escalation_reason,
+            "resolution":
+                self.resolution,
+            "resolution_confirmed":
+                self.resolution_confirmed,
+        }
 
-    def add_user_action(self, action: str):
-        if action and action not in self.user_actions:
-            self.user_actions.append(action)
+    # =========================================================
+    # Очистка
+    # =========================================================
 
-    def add_completed_check(self, check: str):
-        if check and check not in self.completed_checks:
-            self.completed_checks.append(check)
+    def clear(self) -> None:
 
-    def add_fact(self, fact: str):
-        if fact and fact not in self.important_facts:
-            self.important_facts.append(fact)
-
-    def add_unresolved_question(self, question: str):
-        if question and question not in self.unresolved_questions:
-            self.unresolved_questions.append(question)
-
-    def remove_unresolved_question(self, question: str):
-        if question in self.unresolved_questions:
-            self.unresolved_questions.remove(question)
-
-    def add_knowledge(self, knowledge: str):
-        if knowledge and knowledge not in self.knowledge_used:
-            self.knowledge_used.append(knowledge)
-
-    def clear(self):
-        """
-        Полностью очищает состояние текущего обращения.
-        """
+        self.status = ConversationStatus.NEW
 
         self.problem = ""
+
         self.configuration = ""
+
         self.configuration_version = ""
+
         self.platform_version = ""
+
         self.work_mode = ""
+
         self.database_type = ""
+
         self.document_type = ""
+
         self.document_period = ""
+
         self.error_text = ""
 
+        self.error_code = ""
+
         self.user_actions.clear()
+
         self.completed_checks.clear()
+
         self.important_facts.clear()
+
         self.unresolved_questions.clear()
+
+        self.excluded_hypotheses.clear()
+
+        self.current_hypothesis = ""
+
+        self.hypothesis_confidence = 0.0
+
+        self.diagnostic_cycle = 0
+
+        self.next_action = ""
+
         self.knowledge_used.clear()
+
+        self.attachments.clear()
+
+        self.escalation_reason = ""
+
+        self.resolution = ""
+
+        self.resolution_confirmed = False

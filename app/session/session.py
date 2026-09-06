@@ -3,6 +3,7 @@ import time
 
 from app.agent.agent import SupportAgent
 from app.context.context import ConversationStatus
+from support_agent_db.database import Database
 
 
 TERMINAL_STATUSES = {
@@ -57,6 +58,22 @@ class Session:
         # -----------------------------------------------------
 
         self.agent = SupportAgent()
+
+        # -----------------------------------------------------
+        # База данных
+        # -----------------------------------------------------
+
+        try:
+            self.db = Database()
+            self.db.initialize()
+            existing_user = self.db.fetch_one("SELECT id FROM users WHERE external_id = ?", (self.session_id,))
+            if existing_user:
+                self.user_id = existing_user["id"]
+            else:
+                self.user_id = self.db.create_user(name=f"User_{self.session_id}", external_id=self.session_id)
+        except Exception:
+            self.db = None
+            self.user_id = None
 
         # -----------------------------------------------------
         # Временные метки.
@@ -171,6 +188,18 @@ class Session:
             )
 
     # =========================================================
+    # Приветствие
+    # =========================================================
+
+    def get_greeting(self) -> str:
+        """
+        Возвращает приветствие агента сессии.
+        """
+        with self._lock:
+            self.touch()
+            return self.agent.get_greeting()
+
+    # =========================================================
     # Запрос
     # =========================================================
 
@@ -210,19 +239,61 @@ class Session:
 
             self.touch()
 
+            start_time = time.time()
+            req_id = None
+            if self.db and self.user_id:
+                try:
+                    req_id = self.db.create_request(
+                        user_id=self.user_id,
+                        question=user_message,
+                        channel="cli",
+                    )
+                except Exception:
+                    req_id = None
+
             try:
 
-                return self.agent.ask(
+                answer = self.agent.ask(
                     user_message
                 )
+
+                response_time_ms = int((time.time() - start_time) * 1000)
+
+                if self.db and req_id:
+                    try:
+                        was_escalated = (self.agent.context.status == ConversationStatus.ESCALATED)
+                        self.db.complete_request(
+                            request_id=req_id,
+                            answer=answer,
+                            status="escalated" if was_escalated else "success",
+                            confidence=self.agent.context.hypothesis_confidence,
+                            response_time_ms=response_time_ms,
+                            was_escalated=was_escalated,
+                        )
+                    except Exception:
+                        pass
+
+                return answer
+
+            except Exception as exc:
+                response_time_ms = int((time.time() - start_time) * 1000)
+                if self.db and req_id:
+                    try:
+                        self.db.complete_request(
+                            request_id=req_id,
+                            answer="",
+                            status="failed",
+                            response_time_ms=response_time_ms,
+                            error_message=str(exc),
+                        )
+                    except Exception:
+                        pass
+                raise
 
             finally:
 
                 # -------------------------------------------------
                 # Обновляем активность после завершения обработки.
-                #
-                # Это важно, потому что GigaChat-запрос может
-                # выполняться десятки секунд.
                 # -------------------------------------------------
 
                 self.touch()

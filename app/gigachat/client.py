@@ -56,9 +56,9 @@ class GigaChatClient:
 
     def __init__(
         self,
-        timeout: float = 60.0,
-        max_retries: int = 3,
-        retry_backoff_factor: float = 0.5,
+        timeout: float = 15.0,
+        max_retries: int = 2,
+        retry_backoff_factor: float = 0.3,
     ):
         if timeout <= 0:
             raise ValueError(
@@ -332,7 +332,7 @@ class GigaChatClient:
 
         try:
 
-            return self.client.upload(
+            return self.client.upload_file(
                 *args,
                 **kwargs,
             )

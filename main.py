@@ -9,6 +9,12 @@ def main():
 
     agent = SupportAgent()
 
+    # Сразу же представляемся пользователю
+    greeting = agent.get_greeting()
+    print("AI:")
+    print(greeting)
+    print()
+
     while True:
         user_message = input("Вы: ")
 

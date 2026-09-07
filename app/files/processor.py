@@ -13,6 +13,7 @@ class FileProcessor:
         ".png",
         ".jpg",
         ".jpeg",
+        ".webp",
     }
 
     DOCUMENT_EXTENSIONS = {
@@ -76,18 +77,17 @@ class FileProcessor:
         model: str,
     ) -> str:
 
-        payload = {
-            "model": model,
-            "function_call": "auto",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_message,
-                    "attachments": [file_id],
-                }
+        chat = Chat(
+            model=model,
+            messages=[
+                Messages(
+                    role=MessagesRole.USER,
+                    content=user_message,
+                    attachments=[file_id],
+                )
             ],
-        }
+        )
 
-        response = self.client.chat(payload)
+        response = self.client.chat(chat)
 
         return response.choices[0].message.content

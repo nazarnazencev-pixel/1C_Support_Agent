@@ -52,6 +52,12 @@ class ConversationContext:
     problem: str = ""
 
     # =========================================================
+    # Категория обращения
+    # =========================================================
+
+    category: str = ""
+
+    # =========================================================
     # Информация о 1С
     # =========================================================
 
@@ -162,6 +168,18 @@ class ConversationContext:
 
         if problem:
             self.problem = problem
+
+    # =========================================================
+    # Категория
+    # =========================================================
+
+    def update_category(
+        self,
+        category: str,
+    ) -> None:
+
+        if category:
+            self.category = category
 
     # =========================================================
     # 1С
@@ -647,6 +665,7 @@ class ConversationContext:
         return {
             "status": self.status.value,
             "problem": self.problem,
+            "category": self.category,
             "configuration": self.configuration,
             "configuration_version":
                 self.configuration_version,
@@ -689,6 +708,108 @@ class ConversationContext:
                 self.resolution_confirmed,
         }
 
+    def restore_from_dict(
+        self,
+        data: dict[str, Any],
+    ) -> None:
+        """
+        Восстанавливает состояние из словаря, полученного
+        через to_dict() (например, после десериализации из Redis).
+
+        Единая точка восстановления - раньше это делалось вручную
+        по месту (RedisSessionManager._hydrate_session_from_redis)
+        и восстанавливало только 4 поля из примерно двадцати,
+        включая пропущенный status - после восстановления сессии
+        из Redis статус (например ESCALATED/SOLVED) терялся.
+
+        Отсутствующие в data ключи не трогают текущее значение
+        поля.
+        """
+
+        if "status" in data:
+            try:
+                self.status = ConversationStatus(
+                    data["status"]
+                )
+            except ValueError:
+                pass
+
+        string_fields = (
+            "problem",
+            "category",
+            "configuration",
+            "configuration_version",
+            "platform_version",
+            "work_mode",
+            "database_type",
+            "document_type",
+            "document_period",
+            "error_text",
+            "error_code",
+            "current_hypothesis",
+            "next_action",
+            "escalation_reason",
+            "resolution",
+        )
+
+        for name in string_fields:
+            if name in data and isinstance(
+                data[name], str
+            ):
+                setattr(self, name, data[name])
+
+        list_fields = (
+            "user_actions",
+            "completed_checks",
+            "important_facts",
+            "unresolved_questions",
+            "excluded_hypotheses",
+            "knowledge_used",
+        )
+
+        for name in list_fields:
+            if name in data and isinstance(
+                data[name], list
+            ):
+                setattr(
+                    self,
+                    name,
+                    [
+                        item
+                        for item in data[name]
+                        if isinstance(item, str)
+                    ],
+                )
+
+        if "hypothesis_confidence" in data and isinstance(
+            data["hypothesis_confidence"], (int, float)
+        ):
+            self.hypothesis_confidence = max(
+                0.0,
+                min(1.0, float(data["hypothesis_confidence"])),
+            )
+
+        if "diagnostic_cycle" in data and isinstance(
+            data["diagnostic_cycle"], int
+        ):
+            self.diagnostic_cycle = data["diagnostic_cycle"]
+
+        if "resolution_confirmed" in data and isinstance(
+            data["resolution_confirmed"], bool
+        ):
+            self.resolution_confirmed = data[
+                "resolution_confirmed"
+            ]
+
+        if "attachments" in data and isinstance(
+            data["attachments"], list
+        ):
+            self.attachments = [
+                dict(item)
+                for item in data["attachments"]
+                if isinstance(item, dict)
+            ]
+
     # =========================================================
     # Очистка
     # =========================================================
@@ -698,6 +819,8 @@ class ConversationContext:
         self.status = ConversationStatus.NEW
 
         self.problem = ""
+
+        self.category = ""
 
         self.configuration = ""
 

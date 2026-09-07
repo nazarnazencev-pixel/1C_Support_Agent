@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS escalations (
 CREATE TABLE IF NOT EXISTS feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     request_id INTEGER NOT NULL UNIQUE,
-    rating INTEGER NOT NULL CHECK (rating IN (-1, 1)),
+    rating INTEGER NOT NULL CHECK (rating >= 0 AND rating <= 10),
     comment TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE

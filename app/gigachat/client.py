@@ -56,8 +56,8 @@ class GigaChatClient:
 
     def __init__(
         self,
-        timeout: float = 15.0,
-        max_retries: int = 2,
+        timeout: float = 4.0,
+        max_retries: int = 0,
         retry_backoff_factor: float = 0.3,
     ):
         if timeout <= 0:

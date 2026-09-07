@@ -304,11 +304,14 @@ class DocumentProcessor:
             file_path
         )
 
+        # client.upload() (не upload_file() напрямую) - чтобы сетевые
+        # ошибки/timeout/авторизация проходили через нормализацию
+        # GigaChatClient (см. app/gigachat/client.py).
         with path.open(
             "rb"
         ) as file:
 
-            uploaded = self.client.upload_file(
+            uploaded = self.client.upload(
                 file,
                 purpose="general",
             )

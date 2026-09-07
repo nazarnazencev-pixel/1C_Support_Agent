@@ -128,12 +128,14 @@ class Database:
         response_time_ms: int | None = None,
         was_escalated: bool = False,
         error_message: str | None = None,
+        category: str | None = None,
     ) -> None:
         self.execute(
             """
             UPDATE requests
             SET answer = ?, status = ?, confidence = ?, response_time_ms = ?,
-                was_escalated = ?, error_message = ?, completed_at = CURRENT_TIMESTAMP
+                was_escalated = ?, error_message = ?, completed_at = CURRENT_TIMESTAMP,
+                category = COALESCE(?, category)
             WHERE id = ?
             """,
             (
@@ -143,6 +145,7 @@ class Database:
                 response_time_ms,
                 int(was_escalated),
                 error_message,
+                category,
                 request_id,
             ),
         )

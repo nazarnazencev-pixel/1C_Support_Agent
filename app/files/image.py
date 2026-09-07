@@ -9,6 +9,7 @@ class ImageProcessor:
         ".png",
         ".jpg",
         ".jpeg",
+        ".webp",
     }
 
     def __init__(self, client: GigaChat):
@@ -27,8 +28,13 @@ class ImageProcessor:
                 f"Неподдерживаемый формат изображения: {path.suffix}"
             )
 
+        # Используем client.upload(), а не client.upload_file() напрямую:
+        # upload() - это метод-обёртка GigaChatClient с нормализацией
+        # сетевых ошибок/timeout/авторизации в наши исключения
+        # (см. app/gigachat/client.py). Прямой вызов upload_file()
+        # эту обработку минует.
         with path.open("rb") as file:
-            uploaded = self.client.upload_file(
+            uploaded = self.client.upload(
                 file,
                 purpose="general",
             )

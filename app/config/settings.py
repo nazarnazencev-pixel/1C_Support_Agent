@@ -40,3 +40,8 @@ def validate_config() -> None:
             "Не задана переменная окружения GIGACHAT_CREDENTIALS. "
             "Укажите её в .env (см. .env.example) перед запуском."
         )
+
+
+# Жёсткий бюджет ответа веб-чата: один сетевой вызов GigaChat короче 5 секунд.
+GIGACHAT_TIMEOUT_SECONDS = float(os.getenv("GIGACHAT_TIMEOUT_SECONDS", "3.8"))
+WEB_RESPONSE_BUDGET_MS = 5000

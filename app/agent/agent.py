@@ -499,7 +499,7 @@ class SupportAgent:
         # ответственность пользователя (об этом явно сказано в
         # сообщениях об ошибках _get_gigachat_error_message).
         self.client = GigaChatClient(
-            timeout=4.0,
+            timeout=3.8,
             max_retries=0,
             retry_backoff_factor=0.3,
         )

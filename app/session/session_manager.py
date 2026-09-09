@@ -333,6 +333,7 @@ class SessionManager:
         self,
         session_id: str,
         user_message: str,
+        channel: str = "cli",
     ) -> str:
         """
         Основная точка входа.
@@ -354,7 +355,8 @@ class SessionManager:
         )
 
         return session.ask(
-            user_message=user_message
+            user_message=user_message,
+            channel=channel,
         )
 
     # =========================================================

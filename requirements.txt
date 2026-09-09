@@ -7,3 +7,6 @@ pytest>=8.0.0
 redis>=5.0.0
 fastapi>=0.100.0
 uvicorn>=0.20.0
+
+booktype
+python-multipart>=0.0.9

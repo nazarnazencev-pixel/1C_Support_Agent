@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+from pathlib import Path
 
 from app.agent.agent import SupportAgent
 from app.context.context import ConversationStatus
@@ -128,6 +129,7 @@ class Session:
             max_knowledge_results=max_knowledge_results
         )
         self.last_request_id: int | None = None
+        self.conversation_id: int | None = None
 
         now = time.time()
         self.created_at = now
@@ -192,6 +194,7 @@ class Session:
     def ask(
         self,
         user_message: str,
+        channel: str = "cli",
     ) -> str:
         if not user_message or not user_message.strip():
             raise ValueError("user_message не может быть пустым")
@@ -204,10 +207,25 @@ class Session:
             if self.db:
                 try:
                     self._ensure_user_in_db()
+                    if self.conversation_id is None:
+                        existing_conversation = self.db.fetch_one(
+                            "SELECT id FROM conversations WHERE user_id = ? AND status = 'active' AND channel = ? ORDER BY id DESC LIMIT 1",
+                            (self.user_id, channel),
+                        )
+                        self.conversation_id = (
+                            existing_conversation["id"]
+                            if existing_conversation
+                            else self.db.create_conversation(
+                                user_id=self.user_id,
+                                channel=channel,
+                                external_id=self.session_id,
+                            )
+                        )
                     req_id = self.db.create_request(
                         user_id=self.user_id,
                         question=user_message,
-                        channel="cli",
+                        conversation_id=self.conversation_id,
+                        channel=channel,
                         # Категория ещё не известна на момент
                         # создания запроса (её определит агент по
                         # ходу ответа) - но если в контексте с
@@ -217,6 +235,7 @@ class Session:
                         category=self.agent.context.category or None,
                     )
                     self.last_request_id = req_id
+                    self.db.add_message(self.conversation_id, "user", user_message, req_id)
                 except Exception:
                     req_id = None
 
@@ -262,6 +281,12 @@ class Session:
                             # промпта / STATE_UPDATE).
                             category=self.agent.context.category or None,
                         )
+                        self.db.add_message(
+                            self.conversation_id,
+                            "agent",
+                            answer,
+                            req_id,
+                        )
                         if should_escalate:
                             self.db.add_escalation(
                                 request_id=req_id,
@@ -289,6 +314,22 @@ class Session:
                 raise
             finally:
                 self.touch()
+
+    def request_specialist(self, reason: str = "Пользователь запросил специалиста") -> int | None:
+        """Создаёт эскалацию текущего обращения в БД без дополнительного вызова ИИ."""
+        with self._lock:
+            if not self.db or not self.last_request_id:
+                return None
+            try:
+                confidence = self.agent.context.hypothesis_confidence
+                return self.db.add_escalation(
+                    request_id=self.last_request_id,
+                    reason=reason,
+                    confidence=confidence,
+                )
+            except Exception:
+                logger.exception("Не удалось создать эскалацию")
+                return None
 
     def submit_csat_feedback(self, rating: int, comment: str | None = None) -> int | None:
         """
@@ -321,11 +362,64 @@ class Session:
 
         with self._lock:
             self.touch()
+            start_time = time.time()
+            req_id = None
+            if self.db:
+                try:
+                    self._ensure_user_in_db()
+                    if self.conversation_id is None:
+                        self.conversation_id = self.db.create_conversation(
+                            user_id=self.user_id,
+                            channel="web",
+                            external_id=self.session_id,
+                        )
+                    req_id = self.db.create_request(
+                        user_id=self.user_id,
+                        conversation_id=self.conversation_id,
+                        channel="web",
+                        question=user_message,
+                        category=self.agent.context.category or None,
+                    )
+                    self.last_request_id = req_id
+                    self.db.add_message(self.conversation_id, "user", f"[Файл] {file_path}", req_id)
+                except Exception:
+                    req_id = None
             try:
-                return self.agent.analyze_file(
+                answer = self.agent.analyze_file(
                     file_path=file_path,
                     user_message=user_message,
                 )
+                elapsed = int((time.time() - start_time) * 1000)
+                if self.db and req_id:
+                    self.db.complete_request(
+                        request_id=req_id,
+                        answer=answer,
+                        status="success" if not self.agent.last_request_failed else "failed",
+                        response_time_ms=elapsed,
+                        category=self.agent.context.category or None,
+                    )
+                    self.db.add_message(self.conversation_id, "agent", answer, req_id)
+                    self.db.add_attachment(
+                        request_id=req_id,
+                        file_name=Path(file_path).name,
+                        file_type=Path(file_path).suffix.lower().lstrip("."),
+                        file_path=file_path,
+                    )
+                return answer
+            except Exception as exc:
+                elapsed = int((time.time() - start_time) * 1000)
+                if self.db and req_id:
+                    try:
+                        self.db.complete_request(
+                            request_id=req_id,
+                            answer="",
+                            status="failed",
+                            response_time_ms=elapsed,
+                            error_message=str(exc),
+                        )
+                    except Exception:
+                        pass
+                raise
             finally:
                 self.touch()
 

@@ -19,6 +19,7 @@ from app.config.settings import (
     GIGACHAT_BASE_URL,
     GIGACHAT_CREDENTIALS,
     GIGACHAT_SCOPE,
+    GIGACHAT_TIMEOUT_SECONDS,
 )
 
 from app.gigachat.errors import (
@@ -56,13 +57,13 @@ class GigaChatClient:
 
     def __init__(
         self,
-        timeout: float = 4.0,
+        timeout: float = GIGACHAT_TIMEOUT_SECONDS,
         max_retries: int = 0,
         retry_backoff_factor: float = 0.3,
     ):
-        if timeout <= 0:
+        if timeout <= 0 or timeout >= 5:
             raise ValueError(
-                "timeout должен быть больше 0"
+                "timeout должен быть больше 0 и меньше 5 секунд"
             )
 
         if max_retries < 0:

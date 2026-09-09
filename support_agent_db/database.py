@@ -278,3 +278,58 @@ class Database:
             (key, value, description),
         )
         self.connection.commit()
+
+
+    def recent_requests(self, limit: int = 20) -> list[dict[str, Any]]:
+        limit = max(1, min(int(limit), 200))
+        return self.fetch_all(
+            """
+            SELECT r.id, r.created_at, r.channel, r.category, r.question,
+                   r.status, r.response_time_ms, r.confidence, r.was_escalated,
+                   u.name AS user_name
+            FROM requests r
+            JOIN users u ON u.id = r.user_id
+            ORDER BY r.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+
+    def open_escalations(self) -> list[dict[str, Any]]:
+        return self.fetch_all(
+            """
+            SELECT e.id AS escalation_id, e.request_id, e.reason, e.confidence,
+                   e.status, e.created_at, r.question, u.name AS user_name
+            FROM escalations e
+            JOIN requests r ON r.id = e.request_id
+            JOIN users u ON u.id = r.user_id
+            WHERE e.status IN ('open', 'in_progress')
+            ORDER BY e.created_at DESC
+            """
+        )
+
+    def attachment_count(self) -> int:
+        row = self.fetch_one("SELECT COUNT(*) AS n FROM attachments")
+        return int((row or {}).get("n", 0) or 0)
+
+    def specialist_call_count(self) -> int:
+        row = self.fetch_one("SELECT COUNT(*) AS n FROM escalations")
+        return int((row or {}).get("n", 0) or 0)
+
+
+    def add_attachment(
+        self,
+        request_id: int,
+        file_name: str,
+        file_type: str | None = None,
+        file_path: str | None = None,
+        gigachat_file_id: str | None = None,
+        ocr_text: str | None = None,
+    ) -> int:
+        cursor = self.execute(
+            """INSERT INTO attachments(request_id, file_name, file_type, file_path, gigachat_file_id, ocr_text)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (request_id, file_name, file_type, file_path, gigachat_file_id, ocr_text),
+        )
+        self.connection.commit()
+        return int(cursor.lastrowid)

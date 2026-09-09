@@ -1,0 +1,12 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wizard_Lizard</title><link rel="stylesheet" href="/static/styles.css"></head>
+<body><div class="layout">
+<aside class="sidebar"><div class="brand"><div class="logo">🦎</div><div><b>WIZARD_LIZARD</b><small>MAGIC BOT</small></div></div>
+<nav><button class="active">💬 <span>Чат</span></button><button onclick="document.getElementById('file').click()">📄 <span>Файлы</span></button><button onclick="requestSpecialist()">👤 <span>Подключить специалиста</span></button><a href="/admin">⚙ <span>Админ-панель</span></a></nav>
+<div class="online">● AI агент онлайн<small>Всегда готов помочь</small></div></aside>
+<main class="chat"><header><div class="avatar">🦎</div><div><h2>Wizard_Lizard</h2><span>● ИИ агент</span></div><div class="header-actions">⌁</div></header>
+<section id="messages" class="messages"></section>
+<footer><input type="file" id="file" hidden accept=".pdf,.docx,.txt,.xlsx,.jpg,.jpeg,.png,.webp"><button class="icon" onclick="document.getElementById('file').click()">📎</button><input id="input" placeholder="Напишите сообщение..." autocomplete="off"><button class="send" onclick="send()">➤</button></footer></main>
+<aside class="right"><div class="card"><h3>📄 Файлы</h3><div id="drop" class="drop">Перетащите файл сюда<br><u>или выберите файл</u><small>PDF, DOCX, TXT, XLSX, JPG, PNG</small><button onclick="document.getElementById('file').click()">Выбрать файл</button></div></div>
+<div class="card"><h3>👤 Подключить специалиста</h3><p>Если вопрос требует участия живого специалиста — мы передадим ему обращение.</p><button onclick="requestSpecialist()">Выбрать специалиста</button></div>
+<div class="card agent"><h3>🧠 ИИ агент <em>Активен</em></h3><p>Отвечает на вопросы, анализирует файлы и использует вашу базу знаний.</p><small>⚡ GigaChat + база знаний + Python</small></div></aside></div>
+<script src="/static/app.js"></script></body></html>

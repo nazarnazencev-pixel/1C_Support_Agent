@@ -1,0 +1,9 @@
+async function login(e){e.preventDefault();const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:loginName.value,password:loginPass.value})});if(r.ok){login.hidden=true;dashboard.hidden=false;load()}else loginError.textContent='Неверный логин или пароль'}
+async function logout(){await fetch('/api/admin/logout',{method:'POST'});location.reload()}
+async function load(){const [s,d,req,esc]=await Promise.all([fetch('/api/admin/summary'),fetch('/api/admin/daily'),fetch('/api/admin/requests'),fetch('/api/admin/escalations')]);const summary=await s.json(),daily=await d.json(),requests=await req.json(),escalations=await esc.json();
+const vals=[['Всего обращений',summary.total_requests||0,''],['Успешно выполнено',summary.successful_requests||0,'success'],['Вызовов специалиста',summary.specialist_calls||0,''],['Обработано файлов',summary.attachments_count||0,'']];
+metrics.innerHTML=vals.map(x=>`<div class="metric">${x[0]}<b>${x[1]}</b><small>данные из SQLite</small></div>`).join('');
+const max=Math.max(1,...daily.map(x=>x.total_requests||0));chart.innerHTML=daily.slice(0,14).reverse().map(x=>`<div class="bar" title="${x.day}: ${x.total_requests}" style="height:${Math.max(4,(x.total_requests/max)*100)}%"></div>`).join('');
+requestsEl=requests;requestsEl=Array.isArray(requestsEl)?requestsEl:[];document.getElementById('requests').innerHTML=requestsEl.map(x=>`<tr><td>#${x.id}</td><td>${x.created_at}</td><td>${x.channel}</td><td><span class="badge">${x.status}</span></td><td>${x.response_time_ms??'-'} ms</td></tr>`).join('');
+document.getElementById('escalations').innerHTML=escalations.length?escalations.map(x=>`<div class="metric"><b>#${x.request_id}</b>${x.question}<br><small>${x.reason} · ${x.created_at}</small></div>`).join(''):'Нет открытых запросов';}
+async function check(){const r=await fetch('/api/admin/me');if(r.ok){login.hidden=true;dashboard.hidden=false;load()}}check();

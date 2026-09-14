@@ -1,0 +1,11 @@
+[Unit]
+Description=Check domain readiness for initial HTTPS setup
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1h
+RandomizedDelaySec=60
+Unit=molvest-https.service
+
+[Install]
+WantedBy=timers.target

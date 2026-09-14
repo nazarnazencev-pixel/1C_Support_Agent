@@ -1,0 +1,26 @@
+[Unit]
+Description=Molvest support API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=molvest
+Group=molvest
+WorkingDirectory=/opt/molvest-support/1C_Support_Agent
+EnvironmentFile=/etc/molvest-support/environment
+Environment=PYTHONPATH=/opt/molvest-support/web:/opt/molvest-support/1C_Support_Agent
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/molvest-support/.venv/bin/uvicorn server.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/molvest-support /opt/molvest-support/1C_Support_Agent/data/knowledge
+
+[Install]
+WantedBy=multi-user.target

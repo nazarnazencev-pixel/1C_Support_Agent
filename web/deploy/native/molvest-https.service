@@ -1,0 +1,9 @@
+[Unit]
+Description=Enable HTTPS after domain DNS is ready
+Wants=network-online.target
+After=network-online.target nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/molvest-support/web/deploy/native/enable-https.sh
+TimeoutStartSec=300

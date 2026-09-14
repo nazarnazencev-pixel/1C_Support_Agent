@@ -1,0 +1,13 @@
+gigachat>=0.2.0
+numpy>=1.26.0
+python-dotenv>=1.0.0
+httpx>=0.28.0
+truststore>=0.10.0
+pydantic>=2.0.0
+pytest>=8.0.0
+redis>=5.0.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
+xlrd==2.0.2
+striprtf==0.0.29
+Pillow>=12.1.1,<13

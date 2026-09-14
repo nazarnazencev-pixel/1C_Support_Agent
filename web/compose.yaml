@@ -1,0 +1,47 @@
+name: molvest-support
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: web/deploy/api.Dockerfile
+    env_file: .env
+    environment:
+      GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS:?Set GIGACHAT_CREDENTIALS in web/.env}
+      WEB_ADMIN_PASSWORD: ${WEB_ADMIN_PASSWORD:?Set WEB_ADMIN_PASSWORD in web/.env}
+      KNOWLEDGE_PATH: /app/1C_Support_Agent/data/knowledge
+      KNOWLEDGE_INDEX_PATH: /app/1C_Support_Agent/data/knowledge/index
+      KNOWLEDGE_BACKEND: ${KNOWLEDGE_BACKEND:-keyword}
+    volumes:
+      - support_state:/state
+      - knowledge:/app/1C_Support_Agent/data/knowledge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/deploy/web.Dockerfile
+    ports:
+      - '127.0.0.1:${WEB_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+volumes:
+  support_state:
+  knowledge:
